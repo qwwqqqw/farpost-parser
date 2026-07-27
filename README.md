@@ -1,5 +1,7 @@
 # Farpost Parser с интеграцией в Telegram 
 
+![alt text](image.png)
+![alt text](image-1.png)
 
 ## Основные возможности
 
