@@ -1,58 +1,28 @@
-"""
-Репозиторий для работы с базой данных
-"""
 from typing import List, Optional
-
 from loguru import logger
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
-
 from src.config import get_settings
 from src.database.models import Base, Listing
 from src.utils.exceptions import DatabaseError
-
-
 class ListingRepository:
-    """Репозиторий для работы с объявлениями"""
-    
     def __init__(self):
-        """Инициализация репозитория"""
         settings = get_settings()
-        
-        # Создаем движок БД
         self.engine = create_engine(
             settings.database_url,
             echo=False,
             pool_pre_ping=True,
         )
-        
-        # Создаем таблицы
         Base.metadata.create_all(self.engine)
-        
-        # Создаем фабрику сессий
         self.SessionLocal = sessionmaker(
             autocommit=False,
             autoflush=False,
             bind=self.engine
         )
-        
         logger.info("Репозиторий базы данных инициализирован")
-    
     def get_session(self) -> Session:
-        """Получить сессию базы данных"""
         return self.SessionLocal()
-    
     def get_by_external_id(self, platform: str, external_id: str) -> Optional[Listing]:
-        """
-        Получить объявление по внешнему ID
-        
-        Args:
-            platform: Платформа (avito, youla, drom)
-            external_id: Внешний ID объявления
-            
-        Returns:
-            Объект Listing или None
-        """
         try:
             with self.get_session() as session:
                 stmt = select(Listing).where(
@@ -64,30 +34,9 @@ class ListingRepository:
         except Exception as e:
             logger.error(f"Ошибка получения объявления: {e}")
             raise DatabaseError(f"Ошибка получения объявления: {e}")
-    
     def is_new_listing(self, platform: str, external_id: str) -> bool:
-        """
-        Проверить, является ли объявление новым
-        
-        Args:
-            platform: Платформа
-            external_id: Внешний ID объявления
-            
-        Returns:
-            True если объявление новое, False если уже существует
-        """
         return self.get_by_external_id(platform, external_id) is None
-    
     def save_listing(self, listing_data: dict) -> Listing:
-        """
-        Сохранить объявление в базу данных
-        
-        Args:
-            listing_data: Данные объявления
-            
-        Returns:
-            Сохраненный объект Listing
-        """
         try:
             with self.get_session() as session:
                 listing = Listing(**listing_data)
@@ -99,23 +48,12 @@ class ListingRepository:
         except Exception as e:
             logger.error(f"Ошибка сохранения объявления: {e}")
             raise DatabaseError(f"Ошибка сохранения объявления: {e}")
-    
     def mark_as_sent(self, listing_id: int) -> bool:
-        """
-        Отметить объявление как отправленное
-        
-        Args:
-            listing_id: ID объявления
-            
-        Returns:
-            True если успешно, False при ошибке
-        """
         try:
             with self.get_session() as session:
                 stmt = select(Listing).where(Listing.id == listing_id)
                 result = session.execute(stmt)
                 listing = result.scalar_one_or_none()
-                
                 if listing:
                     listing.is_sent = True
                     session.commit()
@@ -127,17 +65,7 @@ class ListingRepository:
         except Exception as e:
             logger.error(f"Ошибка обновления статуса объявления: {e}")
             raise DatabaseError(f"Ошибка обновления статуса объявления: {e}")
-    
     def get_unsent_listings(self, limit: int = 50) -> List[Listing]:
-        """
-        Получить неотправленные объявления
-        
-        Args:
-            limit: Максимальное количество объявлений
-            
-        Returns:
-            Список объявлений
-        """
         try:
             with self.get_session() as session:
                 stmt = select(Listing).where(
@@ -149,21 +77,13 @@ class ListingRepository:
         except Exception as e:
             logger.error(f"Ошибка получения неотправленных объявлений: {e}")
             raise DatabaseError(f"Ошибка получения неотправленных объявлений: {e}")
-    
     def get_statistics(self) -> dict:
-        """
-        Получить статистику по объявлениям
-        
-        Returns:
-            Словарь со статистикой
-        """
         try:
             with self.get_session() as session:
                 total = session.query(Listing).count()
                 sent = session.query(Listing).filter(Listing.is_sent == True).count()
                 unsent = session.query(Listing).filter(Listing.is_sent == False).count()
                 active = session.query(Listing).filter(Listing.is_active == True).count()
-                
                 return {
                     "total": total,
                     "sent": sent,

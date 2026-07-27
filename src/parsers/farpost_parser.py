@@ -1,37 +1,20 @@
-"""
-Парсер для Farpost
-"""
 from typing import List, Dict, Optional
 from urllib.parse import urljoin
 import re
-
 from bs4 import BeautifulSoup
 from loguru import logger
-
 from src.parsers.base_parser import BaseParser
-from src.parsers.avito.http_client import HttpClient
-from src.parsers.avito.proxies.proxy_factory import build_proxy
-
+from src.parsers.farpost.http_client import HttpClient
+from src.parsers.farpost.proxies.proxy_factory import build_proxy
 class FarpostParser(BaseParser):
-    """Парсер для сайта Farpost.ru"""
-    
     PLATFORM_NAME = "farpost"
     BASE_URL = "https://www.farpost.ru"
-    
     def __init__(self, config):
-        """
-        Инициализация парсера Farpost
-        
-        Args:
-            config: Конфигурация приложения
-        """
         super().__init__(
             use_proxy=getattr(config, 'use_proxy', False), 
             proxy_url=getattr(config, 'proxy_url', None)
         )
         self.config = config
-        
-        # Используем HttpClient из Avito, так как он хорошо обходит защиты (curl_cffi)
         self.proxy = build_proxy(config)
         self.http_client = HttpClient(
             proxy=self.proxy,
@@ -40,32 +23,19 @@ class FarpostParser(BaseParser):
             retry_delay=getattr(config, 'retry_delay', 5),
             block_threshold=getattr(config, 'block_threshold', 3),
         )
-        
         logger.info(f"Farpost парсер инициализирован")
-
     def get_listings(self, url: str) -> List[Dict]:
-        """
-        Получить список объявлений по переданному URL
-        """
         logger.info(f"Начинаем парсинг Farpost: {url}")
         listings = []
-        
         try:
             response = self.http_client.request('GET', url)
-            
             if not response or not response.text:
                 logger.error("Не удалось получить HTML страницы Farpost")
                 return listings
-            
-            # Декодируем, так как Farpost обычно использует windows-1251
             html = response.content.decode('windows-1251', errors='ignore')
-            
             if 'captcha' in html.lower() or 'подозрительный' in html.lower():
                 logger.warning("Обнаружена капча или блокировка IP! Нужна смена прокси.")
-            
             soup = BeautifulSoup(html, 'html.parser')
-            
-            # Ищем элементы объявлений на Farpost
             items = (
                 soup.select('tr.bull-item')
                 or soup.select('div.bull-item')
@@ -73,11 +43,9 @@ class FarpostParser(BaseParser):
                 or soup.select('a.bulletinLink')
                 or soup.select('.ticket')
             )
-            
             if not items:
                 logger.warning("Не найдены объявления на странице Farpost. Возможно, капча или изменилась верстка.")
                 return listings
-                
             for item in items:
                 try:
                     listing_data = self._extract_listing_data(item, url)
@@ -86,18 +54,11 @@ class FarpostParser(BaseParser):
                 except Exception as e:
                     logger.debug(f"Ошибка извлечения данных одного объявления: {e}")
                     continue
-                    
             logger.info(f"Найдено {len(listings)} объявлений Farpost на странице")
-            
         except Exception as e:
             logger.error(f"Критическая ошибка парсинга Farpost: {e}")
-            
         return listings
-
     def _extract_listing_data(self, item, source_url: str) -> Optional[Dict]:
-        """Извлечение данных из одного блока объявления"""
-        
-        # Если сам item — это ссылка
         if item.name == 'a' and item.get('href'):
             title_elem = item
             container = item.find_parent('div', class_=re.compile(r'bull-item|description|subject')) or item.parent
@@ -106,29 +67,19 @@ class FarpostParser(BaseParser):
             title_elem = item.select_one('.bulletinLink') or item.select_one('a.title') or item.select_one('a[data-bulletin-id]')
             if not title_elem:
                 title_elem = item.find('a', href=True)
-            
         if not title_elem or not title_elem.get('href'):
             return None
-            
         url_path = title_elem['href']
         listing_url = urljoin(self.BASE_URL, url_path)
-        
-        # Игнорируем ссылки, не являющиеся объявлениями
         if not re.search(r'-\d+\.html', listing_url):
             return None
-            
-        # ID объявления
         external_id = None
         match = re.search(r'-(\d+)\.html', listing_url)
         if match:
             external_id = match.group(1)
         if not external_id:
             external_id = container.get('data-bulletin-id') or str(hash(listing_url))
-            
-        # Заголовок
         title = title_elem.text.strip()
-        
-        # Цена
         price = 0
         price_elem = container.select_one('.price-block__price') or container.select_one('.price') or container.find_parent('tr')
         if price_elem:
@@ -138,17 +89,26 @@ class FarpostParser(BaseParser):
                 price_text = price_elem.select_one('.price').text
             else:
                 price_text = price_elem.text
-            
             price_digits = re.sub(r'[^\d]', '', price_text)
             if price_digits:
                 price = float(price_digits)
-                
-        # Описание
         description = None
         desc_elem = container.select_one('.annotation') or container.select_one('.description') or container.select_one('.bull-item__annotation')
         if desc_elem:
             description = desc_elem.text.strip()
-            
+        # Извлечение фото
+        image_urls = []
+        img_elem = container.select_one('img') or (item.select_one('img') if item.name != 'a' else None)
+        if img_elem:
+            src = img_elem.get('src') or img_elem.get('data-src')
+            if src:
+                # Если путь относительный, дополняем его
+                if src.startswith('//'):
+                    src = 'https:' + src
+                elif src.startswith('/'):
+                    src = urljoin(self.BASE_URL, src)
+                image_urls.append(src)
+
         return {
             'platform': self.PLATFORM_NAME,
             'external_id': external_id,
@@ -156,14 +116,10 @@ class FarpostParser(BaseParser):
             'price': price,
             'url': listing_url,
             'description': description,
+            'image_urls': image_urls,
             'location': None,
             'category': None,
             'published_at': None,
         }
-
     def parse_listing_details(self, listing_url: str) -> Dict:
-        """
-        Получить детальную информацию об объявлении.
-        Пока не реализовано для Farpost.
-        """
         return {}

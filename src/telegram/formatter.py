@@ -1,55 +1,28 @@
-"""
-Форматирование сообщений для Telegram
-"""
 from typing import Dict, Optional
 from datetime import datetime
-
-
 class MessageFormatter:
-    """Форматирование сообщений для отправки в Telegram"""
-    
     @staticmethod
     def format_listing(listing_data: Dict) -> str:
-        """
-        Форматировать объявление для отправки
-        
-        Args:
-            listing_data: Данные объявления
-            
-        Returns:
-            Отформатированное сообщение
-        """
         platform_emoji = {
-            "avito": "🔵",
+            "farpost": "🔵",
             "youla": "🟣",
             "drom": "🟢",
         }
-        
         platform = listing_data.get("platform", "unknown")
         emoji = platform_emoji.get(platform, "⚪")
-        
-        # Заголовок
         title = listing_data.get("title", "Без названия")
         message = f"{emoji} <b>{title}</b>\n\n"
-        
-        # Цена
         price = listing_data.get("price")
         if price:
             message += f"💰 <b>Цена:</b> {MessageFormatter._format_price(price)}\n"
         else:
             message += "💰 <b>Цена:</b> Не указана\n"
-        
-        # Местоположение
         location = listing_data.get("location")
         if location:
             message += f"📍 <b>Местоположение:</b> {location}\n"
-        
-        # Категория
         category = listing_data.get("category")
         if category:
             message += f"📂 <b>Категория:</b> {category}\n"
-        
-        # Дата публикации
         published_at = listing_data.get("published_at")
         if published_at:
             if isinstance(published_at, str):
@@ -57,86 +30,35 @@ class MessageFormatter:
                     published_at = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
                 except:
                     pass
-            
             if isinstance(published_at, datetime):
                 message += f"📅 <b>Опубликовано:</b> {published_at.strftime('%d.%m.%Y %H:%M')}\n"
-        
-        # Описание (укороченное)
         description = listing_data.get("description")
         if description:
-            # Ограничиваем длину описания
             max_desc_length = 300
             if len(description) > max_desc_length:
                 description = description[:max_desc_length] + "..."
             message += f"\n📝 <b>Описание:</b>\n{description}\n"
-        
-        # Ссылка
         url = listing_data.get("url", "")
         message += f"\n🔗 <a href='{url}'>Смотреть объявление</a>"
-        
-        # Платформа
         message += f"\n\n<i>Платформа: {platform.upper()}</i>"
-        
         return message
-    
     @staticmethod
     def _format_price(price: float) -> str:
-        """
-        Форматировать цену
-        
-        Args:
-            price: Цена
-            
-        Returns:
-            Отформатированная цена
-        """
         try:
-            # Форматируем с разделителями тысяч
             return f"{int(price):,} ₽".replace(",", " ")
         except:
             return f"{price} ₽"
-    
     @staticmethod
     def format_statistics(stats: Dict) -> str:
-        """
-        Форматировать статистику
-        
-        Args:
-            stats: Данные статистики
-            
-        Returns:
-            Отформатированное сообщение
-        """
         message = "📊 <b>Статистика парсера</b>\n\n"
         message += f"📦 Всего объявлений: {stats.get('total', 0)}\n"
         message += f"✅ Отправлено: {stats.get('sent', 0)}\n"
         message += f"⏳ Ожидает отправки: {stats.get('unsent', 0)}\n"
         message += f"🔄 Активных: {stats.get('active', 0)}\n"
-        
         return message
-    
     @staticmethod
     def format_error(error_message: str) -> str:
-        """
-        Форматировать сообщение об ошибке
-        
-        Args:
-            error_message: Текст ошибки
-            
-        Returns:
-            Отформатированное сообщение
-        """
         return f"❌ <b>Ошибка:</b>\n{error_message}"
-    
     @staticmethod
     def format_success(success_message: str) -> str:
-        """
-        Форматировать сообщение об успехе
-        
-        Args:
-            success_message: Текст сообщения
-            
-        Returns:
-            Отформатированное сообщение
-        """
         return f"✅ <b>Успех:</b>\n{success_message}"
