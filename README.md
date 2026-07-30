@@ -1,6 +1,6 @@
 # Farpost Parser с интеграцией в Telegram 
 ---
-![alt text](Desktop-2026.07.30-19.35.04.07-Trim.gif)
+![alt text](Desktop-2026.07.30-19.35.04.07-Trim-_online-video-cutter.com_.gif)
 
 ---
 
