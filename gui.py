@@ -126,9 +126,19 @@ class App(ctk.CTk):
 
         self.label_token.grid(row=1, column=0, padx=10, pady=(0, 5), sticky="w")
 
-        self.entry_token = ctk.CTkEntry(self.frame_telegram)
+        self.token_frame = ctk.CTkFrame(self.frame_telegram, fg_color="transparent")
 
-        self.entry_token.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.token_frame.grid(row=2, column=0, padx=10, pady=(0, 10), sticky="ew")
+
+        self.token_frame.grid_columnconfigure(0, weight=1)
+
+        self.entry_token = ctk.CTkEntry(self.token_frame, show="*")
+
+        self.entry_token.grid(row=0, column=0, sticky="ew")
+
+        self.btn_toggle_token = ctk.CTkButton(self.token_frame, text="👁", width=30, command=lambda: self.toggle_visibility(self.entry_token, self.btn_toggle_token))
+
+        self.btn_toggle_token.grid(row=0, column=1, padx=(5, 0))
 
         self.entry_token.insert(0, os.getenv("TELEGRAM_BOT_TOKEN", ""))
 
@@ -138,9 +148,19 @@ class App(ctk.CTk):
 
         self.label_chat_id.grid(row=3, column=0, padx=10, pady=(0, 5), sticky="w")
 
-        self.entry_chat_id = ctk.CTkEntry(self.frame_telegram)
+        self.chat_id_frame = ctk.CTkFrame(self.frame_telegram, fg_color="transparent")
 
-        self.entry_chat_id.grid(row=4, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.chat_id_frame.grid(row=4, column=0, padx=10, pady=(0, 10), sticky="ew")
+
+        self.chat_id_frame.grid_columnconfigure(0, weight=1)
+
+        self.entry_chat_id = ctk.CTkEntry(self.chat_id_frame, show="*")
+
+        self.entry_chat_id.grid(row=0, column=0, sticky="ew")
+
+        self.btn_toggle_chat_id = ctk.CTkButton(self.chat_id_frame, text="👁", width=30, command=lambda: self.toggle_visibility(self.entry_chat_id, self.btn_toggle_chat_id))
+
+        self.btn_toggle_chat_id.grid(row=0, column=1, padx=(5, 0))
 
         self.entry_chat_id.insert(0, os.getenv("TELEGRAM_CHAT_ID", ""))
 
@@ -166,9 +186,19 @@ class App(ctk.CTk):
 
         self.label_proxy_url.grid(row=2, column=0, padx=10, pady=(0, 5), sticky="w")
 
-        self.entry_proxy_url = ctk.CTkEntry(self.frame_proxy)
+        self.proxy_frame = ctk.CTkFrame(self.frame_proxy, fg_color="transparent")
 
-        self.entry_proxy_url.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="ew")
+        self.proxy_frame.grid(row=3, column=0, padx=10, pady=(0, 10), sticky="ew")
+
+        self.proxy_frame.grid_columnconfigure(0, weight=1)
+
+        self.entry_proxy_url = ctk.CTkEntry(self.proxy_frame, show="*")
+
+        self.entry_proxy_url.grid(row=0, column=0, sticky="ew")
+
+        self.btn_toggle_proxy = ctk.CTkButton(self.proxy_frame, text="👁", width=30, command=lambda: self.toggle_visibility(self.entry_proxy_url, self.btn_toggle_proxy))
+
+        self.btn_toggle_proxy.grid(row=0, column=1, padx=(5, 0))
 
         self.entry_proxy_url.insert(0, os.getenv("PROXY_URL", ""))
 
@@ -386,6 +416,20 @@ class App(ctk.CTk):
         thread.daemon = True
 
         thread.start()
+
+    def toggle_visibility(self, entry: ctk.CTkEntry, button: ctk.CTkButton):
+
+        if entry.cget("show") == "*":
+
+            entry.configure(show="")
+
+            button.configure(text="🔒")
+
+        else:
+
+            entry.configure(show="*")
+
+            button.configure(text="👁")
 
     def run_start(self):
 
